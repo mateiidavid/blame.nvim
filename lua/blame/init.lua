@@ -3,6 +3,7 @@ local M = {}
 local gitComm = 'git --no-pager blame '
 local blameArg = '--porcelain --line-porcelain -L '
 
+-- TODO: we should treat the hash separately possibly (i.e extract it).
 local function git_iter(stream)
   local pattern = '(%w+%p*%w+)%s*(.+)'
   local line = stream:read()
@@ -20,6 +21,9 @@ local function git_iter(stream)
   end
 end
 
+-- TODO: if hash is empty (0000) don't display anything
+-- TODO: check file type. Don't run for scratch buffers (ft = '')
+--  fh
 local function blame_output(filename, cursor)
   local args = blameArg .. cursor .. ',+1 -- ' .. filename
   local comm = gitComm .. args
@@ -34,10 +38,13 @@ end
 
 M.blame = function()
   -- Get cursor from current window, we only care about the row
+  local blame_ns = vim.api.nvim_create_namespace('blame-nvim')
+  -- use vim.fn.system for sys calls
+  print('namespace', blame_ns)
   local cursor = vim.api.nvim_win_get_cursor(0)[1]
   local filename = vim.api.nvim_buf_get_name(0)
   local info = blame_output(filename, cursor)
-  print(info.author)
+  --vim.api.nvim_buf_set_virtual_text(0, blame_ns, cursor, 0, {end_row: })
 end
 
 return M
