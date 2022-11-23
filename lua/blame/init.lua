@@ -2,21 +2,21 @@ local M = {}
 
 local gitComm = 'git --no-pager blame '
 local blameArg = '--porcelain --line-porcelain -L '
+local emptyHash = '0000000000000000000000000000000000000000'
 
 -- TODO: we should treat the hash separately possibly (i.e extract it).
 local function git_iter(stream)
   local pattern = '(%w+%p*%w+)%s*(.+)'
-  local line = stream:read()
   local c = 1
   return function()
-    -- If we have nothing left in the stream or we've reached the 12th line,
-    -- return
-    if stream:read(0) == nil or c == 12 then
+    -- If we have nothing left in the stream return
+    if stream:read(0) == nil then
       return nil
     end
-    line = stream:read()
+    local line = stream:read()
     local _, _, key, value = string.find(line, pattern)
     c = c + 1
+
     return key, value
   end
 end
@@ -30,6 +30,12 @@ local function blame_output(filename, cursor)
   local handle = assert(io.popen(comm))
   local blame = {}
   for key, value in git_iter(handle) do
+    print(key)
+    -- The only key that can be 40 bytes is the SHA-1 of the commit
+    -- we want to store the hash as a value in this case
+    if string.len(key) == 40 then
+      blame['hash'] = key
+    end
     blame[key] = value
   end
   handle:close()
@@ -44,6 +50,7 @@ M.blame = function()
   local cursor = vim.api.nvim_win_get_cursor(0)[1]
   local filename = vim.api.nvim_buf_get_name(0)
   local info = blame_output(filename, cursor)
+  print(info.hash)
   --vim.api.nvim_buf_set_virtual_text(0, blame_ns, cursor, 0, {end_row: })
 end
 
