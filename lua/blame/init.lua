@@ -59,6 +59,13 @@ end
 
 M.blame = function(blame_ns)
   -- use vim.fn.system for sys calls
+  local ft = vim.fn.expand('%:h:t') -- get the current file extension
+  if ft == '' then -- if we are in a scratch buffer or unknown filetype
+    return
+  end
+  if ft == 'bin' then -- if we are in nvim's terminal window
+    return
+  end
   local cursor = vim.api.nvim_win_get_cursor(0)[1]
   local filename = vim.api.nvim_buf_get_name(0)
   local info = blame_output(filename, cursor)
@@ -84,6 +91,8 @@ M.setup = function()
       M.clear_output(blame_ns)
     end,
   })
+  -- TODO: pop up after holding for n seconds?
+  -- TODO: don't run on scratch buffers and that stuff
   vim.api.nvim_create_autocmd({ 'CursorHold' }, {
     callback = function()
       M.blame(blame_ns)
