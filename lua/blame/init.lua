@@ -21,7 +21,6 @@ local function git_iter(stream)
   end
 end
 
--- TODO: if hash is empty (0000) don't display anything
 -- TODO: check file type. Don't run for scratch buffers (ft = '')
 --  fh
 local function blame_output(filename, cursor)
@@ -57,46 +56,59 @@ local function render_output(hash, epoch, author, summary)
   return author .. ' • ' .. t .. ' • ' .. summary
 end
 
-M.blame = function(blame_ns)
+local function check_ft()
   -- use vim.fn.system for sys calls
   local ft = vim.fn.expand('%:h:t') -- get the current file extension
-  if ft == '' then -- if we are in a scratch buffer or unknown filetype
-    return
+  if ft == '' or ft == 'doc' then -- if we are in a scratch buffer or unknown filetype
+    return false
   end
+
   if ft == 'bin' then -- if we are in nvim's terminal window
+    return false
+  end
+
+  return true
+end
+
+M.blame = function()
+  if not check_ft() then
     return
   end
+
+  if M.namespace == nil then
+    M.namespace = vim.api.nvim_create_namespace('BlameNvim')
+  end
+
   local cursor = vim.api.nvim_win_get_cursor(0)[1]
   local filename = vim.api.nvim_buf_get_name(0)
   local info = blame_output(filename, cursor)
   local pretty = render_output(info['hash'], info['author-time'], info['author'], info['summary'])
-  local hl = vim.api.nvim_set_hl(blame_ns, 'BlameNvim', {})
+  vim.api.nvim_set_hl(M.namespace, 'BlameNvim', {})
   local extOpts = {
     id = 1,
     virt_text = { { pretty, vim.api.nvim_get_hl_id_by_name('BlameNvim') } },
     virt_text_pos = 'eol',
   }
-  vim.api.nvim_buf_set_extmark(0, blame_ns, cursor, 0, extOpts)
+  vim.api.nvim_buf_set_extmark(0, M.namespace, cursor, 0, extOpts)
 end
 
-M.clear_output = function(ns)
-  vim.api.nvim_buf_del_extmark(0, ns, 1)
+M.clear_output = function()
+  if M.namespace == nil then
+    M.namespace = vim.api.nvim_create_namespace('BlameNvim')
+  end
+  vim.api.nvim_buf_del_extmark(0, M.namespace, 1)
 end
 
 M.setup = function()
+  M.namespace = vim.api.nvim_create_namespace('BlameNvim')
   -- Get cursor from current window, we only care about the row
-  local blame_ns = vim.api.nvim_create_namespace('BlameNvim')
   vim.api.nvim_create_autocmd({ 'CursorMoved', 'CursorMovedI' }, {
-    callback = function()
-      M.clear_output(blame_ns)
-    end,
+    callback = M.clear_output,
   })
   -- TODO: pop up after holding for n seconds?
   -- TODO: don't run on scratch buffers and that stuff
   vim.api.nvim_create_autocmd({ 'CursorHold' }, {
-    callback = function()
-      M.blame(blame_ns)
-    end,
+    callback = M.blame,
   })
 end
 
