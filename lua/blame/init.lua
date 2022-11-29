@@ -86,10 +86,15 @@ M.blame = function()
   vim.api.nvim_set_hl(M.namespace, 'BlameNvim', {})
   local extOpts = {
     id = 1,
+    hl_mode = 'combine',
     virt_text = { { pretty, vim.api.nvim_get_hl_id_by_name('BlameNvim') } },
     virt_text_pos = 'eol',
   }
-  vim.api.nvim_buf_set_extmark(0, M.namespace, cursor, 0, extOpts)
+  local line = cursor - 2
+  if line < 0 then
+    line = 0
+  end
+  vim.api.nvim_buf_set_extmark(0, M.namespace, line, 0, extOpts)
 end
 
 M.clear_output = function()
